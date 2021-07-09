@@ -177,15 +177,41 @@ class BakingLogGui(Ui_MainWindow):
             self.canvasT.draw()
             self.canvasT.flush_events()
 
+    def save_plots(self):
+        self.canvasT.figure.savefig('temp_graph.png')
+
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
+
+    # Create a new thread to receive input from the arduino, so it can run simultaneously as other processes
+    thread = QtCore.QThread()
+
     MainWindow = QtWidgets.QMainWindow()
     ui = BakingLogGui(MainWindow)
     MainWindow.show()
-    manager = SerialManagerArduino(ui.check_logging_status)
-    manager.valueChanged.connect(ui.get_arduino)
-    manager.update.connect(ui.update_plot)
+    # MainWindow.showMaximized()
+
+    # Create a SerialManagerArduino to manage the arduino input
+    manager = SerialManagerArduino(ui.check_logging_status, ui=ui)
+
+    # Move manager to the new thread
+    manager.moveToThread(thread)
+
+    # Call these methods when the thread starts and finishes
+    thread.started.connect(manager.initialize_in_thread)
+    thread.finished.connect(thread.deleteLater)
+
+    # Start the thread here, so we can receive input from the arduino
+    thread.start()
+
     app.exec_()
+
+    # Quit the thread after the program finishes
+    thread.quit()
+
+    # Save the plots from the finished run
+    ui.save_plots()
+
     sys.exit()

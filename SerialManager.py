@@ -6,9 +6,15 @@ class SerialManagerArduino(QtCore.QObject):
     valueChanged = QtCore.pyqtSignal(float)
     update = QtCore.pyqtSignal()
 
-    def __init__(self, check_fn, parent=None):
+    def __init__(self, check_fn, parent=None, ui=None):
         super().__init__(parent)
 
+        self.check = check_fn
+        self.count = 1
+
+        self.ui = ui    # This is the instance of BakingLogGUI that handles the plotting
+
+    def initialize_in_thread(self):
         # Change the COM port for each computer this program is run on (since the arduino may have a different port)
         self.serial_port = QtSerialPort.QSerialPort("COM11")
         self.serial_port.setBaudRate(QtSerialPort.QSerialPort.Baud115200)
@@ -16,8 +22,9 @@ class SerialManagerArduino(QtCore.QObject):
         self.serial_port.readyRead.connect(self.handle_ready_read)
         self.serial_port.open(QtCore.QIODevice.ReadWrite)
 
-        self.check = check_fn
-        self.count = 1
+        # Connect the valueChanged and update pyqtSignals to the get_arduino and update_current methods in BakingLogGUI
+        self.valueChanged.connect(self.ui.get_arduino)
+        self.update.connect(self.ui.update_plot)
 
     def handle_ready_read(self):
         while self.serial_port.canReadLine():
